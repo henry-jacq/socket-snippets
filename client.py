@@ -1,29 +1,74 @@
 import socket
+from time import sleep
+
 
 class Client:
     data_size = 1024
+
+    commands = ['help', 'exit', 'pwd']
 
     def __init__(self, host, port):
         self.host = host
         self.port = port
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((self.host, self.port))
 
-    def ask_input(self):
-        while True:
-            message = input("Enter your message: ")
-            self.socket.send(message.encode('utf-8'))
-            response = self.socket.recv(self.data_size)
-            print("Response from server:", response.decode('utf-8'))
+    def connect(self):
+        try:
+            while True:
+                print(f"[+] Trying to connect {self.host}")
+                result = self.socket.connect((self.host, self.port))
+                if result is None:
+                    sleep(2)
+                    print("[+] Got a Connection!")
+                    return True
+        except:
+            sleep(1.5)
+            print("[-] Failed to connect the server!")
+            return False
+
+    def run(self):
+        try:
+            if self.connect():
+                print("[+] Gaining Shell...")
+                sleep(1)
+                while True:
+                    message = input(">> ")
+
+                    if message.lower() in self.commands:
+                        if message.lower() == 'exit':
+                            break
+
+                        if message.lower() == 'help':
+                            self.print_help()
+                            continue
+                    elif not message:
+                        continue
+
+                    self.socket.send(message.encode('utf-8'))
+                    response = self.socket.recv(self.data_size)
+                    print("Response from server:", response.decode('utf-8'))
+                print("[-] Connection closed!")
+        except:
+            self.__close()
+
+    def print_help(self):
+        print("Available Commands:")
+        print("\tcd <directory> - Change Directory")
+        print("\tpwd - Print Working Directory")
+        print("\texit - Exit from the shell")
+        print("\thelp - Print this help message")
+
+    def manage_commands(self):
+        pass
 
     def __close(self):
         self.socket.close()
         print("Pipeline Broken!")
 
+
 if __name__ == "__main__":
-    host = socket.gethostname()
+    host = socket.gethostbyname(socket.gethostname())
     port = 12345
 
     client = Client(host, port)
-
-    client.ask_input()
+    client.run()
