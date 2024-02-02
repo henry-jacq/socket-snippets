@@ -30,7 +30,7 @@ class Client:
         try:
             if self.connect():
                 print("[+] Gaining Shell...")
-                sleep(1)
+                sleep(.5)
                 while True:
                     message = input(">> ")
 
@@ -46,15 +46,16 @@ class Client:
 
                     self.socket.send(message.encode('utf-8'))
                     response = self.socket.recv(self.data_size)
-                    print("Response from server:", response.decode('utf-8'))
+                    print(response.decode('utf-8'))
                 print("[-] Connection closed!")
         except:
             self.__close()
 
     def print_help(self):
         print("Available Commands:")
-        print("\tcd <directory> - Change Directory")
-        print("\tpwd - Print Working Directory")
+        print("\tdir - List info about current directory")
+        print("\tpwd - Print path of current directory")
+        print("\tinfo - Print system information")
         print("\texit - Exit from the shell")
         print("\thelp - Print this help message")
 
