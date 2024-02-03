@@ -21,9 +21,9 @@ class Client:
                     sleep(2)
                     print("[+] Got a Connection!")
                     return True
-        except:
+        except Exception as e:
             sleep(1.5)
-            print("[-] Failed to connect the server!")
+            print(f"[-] {e}")
             return False
 
     def run(self):
@@ -69,7 +69,7 @@ class Client:
 
 if __name__ == "__main__":
     host = socket.gethostbyname(socket.gethostname())
-    port = 12345
+    port = 4555
 
     client = Client(host, port)
     client.run()
